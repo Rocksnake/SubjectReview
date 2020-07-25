@@ -551,7 +551,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 
 堆栈的用途是存放中断
 
-![image-20200719154549800](C:/Users/hp/AppData/Roaming/Typora/typora-user-images/image-20200719154549800.png)
+![](https://img-blog.csdnimg.cn/20200725090410541.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
 
 * 存放寄存器或存储器中暂时不使用的数据，在使用这些数据时可以方便地将其弹出
 * 调用子程序或发生中断时要保护断点信息（入栈），子程序或中断返回时恢复断点信息（出栈）
