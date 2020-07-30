@@ -56,7 +56,7 @@ CPU对存储器的读写是通过三种总线完成。
 
 ### 功能（分开介绍）
 
-#### 通用寄存#器
+#### 通用寄存器
 
 可以用来传送和暂存数据，可参与算术逻辑运算并保存运算结果
 
@@ -97,7 +97,7 @@ MOV  AL,0AH    ->   F6 + 0A = 100H, 9位，超过AL，所以去掉最高位，�
 
 > 物理地址 = 基础地址 + 偏移地址
 >
-> 基础地址 = 段地址 x 10H
+> 基础地址 = 段地址 x 10H（$16_{10}$）
 
 ![image.png](https://i.loli.net/2020/07/18/fvZW6ozJOSnhYa5.png)
 
@@ -106,9 +106,15 @@ MOV  AL,0AH    ->   F6 + 0A = 100H, 9位，超过AL，所以去掉最高位，�
 **8086中有4个段寄存器：**
 
 * CS代码段 【主要关注】
-* DS数据段
-* SS栈段
-* ES附加段
+* DS数据段：存放操作的数据
+* SS堆栈段：存放暂时不用但需要保存的数据
+  * 举个例子，写代码时的return，return回来的位置就是记录在堆栈段的
+  * 常用于响应中断或子程序调用
+* ES附加段：存放操作的数据【一部分指令需要】
+
+无论段的个数有多少个，类型只有四种，四个逻辑段，8086每类逻辑段的数量最多为64k个
+
+在任何一个程序模块中，每一种类型的逻辑段最多只有1个，如果说程序太大，一个段里放不下，那就只能再编写一个模块。要分时运行，不能同时做，
 
 #### 过程
 
@@ -160,6 +166,8 @@ CPU是由CS：IP中的内容决定执行命令
 #### 段寄存器与逻辑段
 
 8086CPU有4个段寄存器，**每个段寄存器用来确定一个逻辑段的起始位置**：
+
+> 段寄存器中的值表明相应逻辑段在内存中的位置
 
 * CS 指明代码的起始地址
   * 利用CS：IP取得下一条要执行的指令
@@ -1014,7 +1022,7 @@ LES 与 LDS 工作原理相同
 
 ### 过程（子程序）
 
-> 子程序：程序中具有独立功能的部分编写成独立程序模块
+> 子程序：程序中具有独立功能的部分编写成独立程序模块，通过PLC和ADDP实现
 >
 > - 子程序调用   CALL  子过程名
 > - 返回指令   RET  在子程序结尾，用来返回主程序
@@ -1051,3 +1059,434 @@ LES 与 LDS 工作原理相同
 ![UOH8Hg.png](https://s1.ax1x.com/2020/07/23/UOH8Hg.png)
 
 ![UOHIbD.png](https://s1.ax1x.com/2020/07/23/UOHIbD.png)
+
+# 8086/8088微处理器
+
+组成：
+
+* 运算器
+* 控制器
+* 寄存器
+
+提出几个问题：
+
+* 8086 / 8088 CPU能够实现指令并行流水工作的原因
+* 实地址模式下的存储器地址变换原理
+* 如何知道CPU当前工作状态及指令运算结果的特征
+
+> 能够并行处理16位的二进制码，对内对外都是如此
+
+<img src="https://img-blog.csdnimg.cn/20200729085935810.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+二者内部都是16位的体系结构，在外部：
+
+* 8086 对外的通道就是数据总线是16位的
+* 8088 是8位的
+
+有助于与其他 8 位的芯片与接口连接，因为通道的宽度不一样，所以在一些引线的功能上有一些细微的区别。
+
+## 工作模式
+
+> * 最小模式 - 单处理器模式
+> * 最大模式
+>
+> 总线连接：最大模式下会通过总线控制器与外部的控制总线连接，而最小模式是直接连接。
+
+选择工作在哪个工作模式，8088 由MN/MX引线的状态决定。
+
+## 主要引线
+
+### 8086/8088在最小工作模式下访问一次内存或者接口的引脚
+
+> ALE 地址锁存信号，决定了地址锁存器
+>
+> RESET 复位信号
+>
+> ALU  运算器
+
+#### 地址信号
+
+> 微处理器读取一条指令的控制过程（涉及到三大信号：地址信号、控制信号、数据信号）
+>
+> * 发出读取数据所在的目标地址
+>   * 内存储器单元地址
+>   * I/O接口地址
+> * 发出读控制信号
+> * 送出传输的数据
+
+其地址总线的宽度是20位的，也就是20为地址信号（可以管理1M的地址单元，可以产生1M个编码）：
+
+> 可以管理地址单元数取决于地址总线的宽度
+
+* AD0-AD7：低8位地址和低8位数据信号分时复用，传送地址信号时为单向，传送数据信号时为双向（先有地址，后有数据）
+* A16-A19：高4位地址信号，与状态信号分时复用
+* A8-A15：8位地址信号
+
+#### 主要控制信号
+
+#代表上横线，代表低电平有效
+
+#WR #RD分别是读写信号，上横线，低电平有效
+
+读和写的对象到底是内存还是接口，取决于另外一个引脚IO/#M，为0表示访问内存，为1表示访问接口
+
+> 虽然我们确定了读写的操作，由最小工作模式示意图可以得知，数据信号的输入和输出并不是数据总线直接与8086/8088的数据引线D0和D7相连，而是通过数据收发器的环节
+
+针对这个环节的控制信号：
+
+* #DEN：低电平有效，允许进行读/写操作，数据收发器的片选信号，其有效，数据才能进入CPU，就像ALE地址锁存器一样
+* DT/#R：数据收发器的传送方向控制
+
+是数据收发器的选通信号以及数据传输方向的控制信号
+
+#### For Example
+
+* 当#WR = 1，#RD = 0，IO/#M = 0时，表示在读存储器操作
+
+### READY 信号
+
+外部同步控制信号：CPU访问一次内存或者访问一次接口所需要的一个操作的周期，正常情况下一次需要的是 4 个时钟周期（一个周期基本上是0.2us）【也称为一个总线周期】，一个时钟周期就是时钟频率（基本上是5MHz）倒过来。
+
+内存比CPU慢，接口更慢，所以不一定在4 个时钟周期内就能够完成，解决方案：
+
+增加一个时钟周期，当CPU访问时发出一个访问信号，也就是在第3个时钟周期开始检测它的各个引脚
+
+* 如果READY是高电平，那就是READY，送上第4 个时钟周期，一次访问就结束了
+* 如果是低电平，那么就需要等待，等待就是在第三个时钟周期后插入一个时钟周期，称之为TW，等待周期，如果插入一个再去检测READY还是低电平，那就接着插入第二个TW，直到高电平
+
+### 中断请求和相应信号
+
+* INTR： 可屏蔽中断请求输入端（CPU可以不理睬）
+* NMI：非屏蔽中断请求输入端
+* #INTA：中断响应输出端
+
+### 总线保持信号
+
+> 工作在CPU直接存储器存取的时候，CPU将总线控制权交出
+>
+> * 一些高速的外部设备直接将数据写入内存或者直接读取
+
+* HOLD：当CPU以外的其他设备要求占用总线时，通过该引脚向CPU发出请求
+* HLDA：总线保持响应信号输出端，CPU对HOLD信号的响应信号
+
+## 内部结构
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200729144335468.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200729111753118.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+BIU 总线接口单元，EU 执行单元
+
+BIU与EU合称为8086、dao8088两大独立工作单元。其中BIU负责dao从内版存指定区域取出指令传权送到指令队列中排队；执行指令时所需要的操作数也由BIU从相应的内存区域取出，传送给执行部件EU。指令执行的结果如果需要存入内存的话，也由BIU写入相应的内存区域。总之，BIU同外部总线连接为EU完成所有的总线操作，并形成20位的内存物理地址。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200729112402761.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> 指令预取队列，使得EU 和BIU 两个部分可以同时进行工作，实现指令的并行执行，提高了效率，降低了存储器存取速度的要求
+
+## 实模式存储器寻址与总线
+
+### 实模式存储器寻址
+
+* 内存分段管理思想
+* 实模式下的内存地址变换
+* 段寄存器的应用
+* 堆栈的概念
+
+> 8088需要管理1M的内存，也即利用16位的体系结构来产生一个20位地址，这样的能力要通过内存分段管理方式实现。
+>
+> 欲实现对1M内存空间的正确访问，每个内存单元在整个内存空间中必须具备唯一地址，内存地址变换就是：如何将直接产生的16位编码变换为20位的物理地址。
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200729151636412.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200729151629361.png)
+
+<font color="red">实际上是要把32位的逻辑地址变换为20位的物理地址。</font>
+
+段基地址决定了存储单元在内存中的位置，逻辑段的起始地址（每个逻辑段内第一个单元）称为段首，任何一个段的段首地址都能被16整除，
+
+> 内存的分段是逻辑分段，不是物理段，各个逻辑段在地址上可以不相连，可以部分重合可以完全重合，当一个单元在这个时间作为这个段使用时，使用的是这个段的段基地址：偏移地址，当另一个时刻做另一个段使用时，物理地址是不变的，由于偏移地址变为零，段基地址就是之前的物理地址除以10H
+
+推出：也就是每个内存单元具有唯一的物理地址，但是可以有多个逻辑地址
+
+* 一个内存单元可以在不同的时刻属于相同（或不同类型）的段。
+
+* 一个内存单元可以在同一时刻属于不同类型的段，我们知道一个程序模块中，段的类型只有4种
+
+编写程序时无法考虑段基地址，只能考虑偏移地址
+
+> 内存中，一般的逻辑段我们关注的是段首以及某一个单元相对于段首的距离，对于堆栈段，我们关注的首先是栈底，然后是栈顶
+>
+> * 栈底 = 栈顶，空栈
+> * 栈顶 = 栈首，满栈
+
+## 总线
+
+> * CPU 工作时序：CPU各引脚信号在时间上的关系
+> * 总线周期：一个总线周期至少包括4个时钟周期
+
+时序图：横轴是时间轴，纵坐标是各个引脚的幅值。所以看时序图通常是竖着看的，某一个时刻各个引脚之间的关系。
+
+观察时序图，CLK是时钟信号，有一些信号有上有下，是总线信号，总线信号我们需要关注的是一组信号，而不是单个是否有效【鼓起来有效，平下去无效】，IO/#M比较特殊，虽然只有一根但是还是有上有下，因为这个信号有两种可能，可能高电平也可能低电平。
+
+> 总线：是一组导线和相关的控制、驱动电路的集合，是计算机系统各部件之间传输地址、数据和控制信息的通道。
+>
+> * CPU总线
+> * 系统总线
+> * 外部总线【USB总线】
+
+单总线结构会导致效率低而且总线争用导致拥塞，双总线结构有面向CPU的和面向主存的
+
+* 面向CPU的双总线结构，存储器与I/O接口之间无直接通道，当需要高速的外部设备需要访问内存时，必须要经过CPU而不能直接访问内存
+* 面向主存的双总线结构，在单总线的基础上增加了一条CPU到存储器的高速总线
+
+> 功能：
+>
+> * 数据传送【同步、READY】
+> * 仲裁控制【总线争用的情况下判定归谁使用】
+> * 出错处理
+> * 总线驱动
+
+> 总线性能指标
+>
+> * 总线带宽，单位时间内总线上可传送的数据量
+>   * 总线带宽 = 位宽 x 工作频率
+> * 总线位宽，能同时传送的数据位数
+> * 工作频率，总线带宽 = (位宽 / 8) x (工作频率 / 每个存取周期的时钟数)
+
+# 汇编语言程序设计
+
+> 汇编语言源程序：用助记符编写
+>
+> 汇编程序：源程序的编译程序
+>
+> 汇编语言程序  ->  汇编程序  ->  机器语言目标程序（计算机能够识别）
+
+* 输入汇编语言源程序 -> 源文件.ASM
+* 汇编  ->  目标文件.OBJ
+* 链接  ->  可执行文件.exe
+
+> 汇编语言语句类型：
+>
+> * 指令性语句：CPU执行的语句，能够生成目标代码
+> * 指示性语句：CPU不执行，由汇编程序执行的语句
+
+## 操作数 
+
+> 操作数：
+>
+> * 寄存器
+> * 存储器单元
+> * 常量
+> * 变量或标号
+> * 表达式
+
+<font color="red">字符串常量通常是加单引号代表的，如果不加单引号就会按照数字常量处理，例如ABCD，不加单引号就需要加H，为ABCDH代表16进制数，进一步，如果操作数的第一位是字母，为了区分数字或者字符串，数字时需要加上0，为0ABCDH</font>
+
+> 变量
+>
+> 某一个内存单元的符号地址，为存储器操作数
+>
+> 属性：
+>
+> ​	段值  —- 变量所在段的段地址
+>
+> ​	偏移量 — 变量所指单元的偏移地址
+>
+> ​	类型 — 字节型、字形、双字型
+
+## 运算符
+
+> **取值运算符：**
+>
+> 用于分析存储器操作数的属性
+>
+> 获取变量的属性值
+>
+> * OFFSET  –  取得其后变量或标号的偏移地址【LEA指令也可以】
+> * SEG  – 取得其后变量或标号的段地址
+>
+> ```commonlisp
+> MOV  AX, SEG  DATA  ;  取变量DATA段地址送给AX
+> 
+> MOV DS,  AX  ;  把段地址送给DS
+> 
+> MOV BX,  OFFSET  DATA   ;   取变量偏移地址送给BX【等价于LEA  BX，DATA】
+> ```
+
+> **属性运算符**  PTR
+>
+> 用于指定其后存储器操作数的类型，单操作数格式指令中，如果操作数是存储器操作数必须要声明字长，声明办法就是利用属性运算符
+>
+> MOV  BYTR  PTR[BX], 12H   ; 把12H送到BX所指目标存储器单元中
+>
+> 这里用PTR 声明了BX的字长，就是一个bytr，指定存储器操作数[BX] 为字节型，所以源操作数就是12H，当然如果 PTR 前面的不是 BYTR，而是 WORD， 那源操作数就不再是12H，而是0012H
+
+## 伪指令
+
+> 伪指令：帮助计算机理解助记符指令编写的汇编语言程序
+
+### 数据定义伪指令
+
+> 数据定义伪指令决定所定义变量的类型
+>
+> 定义字符串必须使用DB伪指令
+
+<img src="https://img-blog.csdnimg.cn/20200729223337919.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729215325361.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom: 67%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729222835106.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729222746674.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+#### 重复操作符
+
+> 常用于声明一个数据区
+>
+> 当同样的操作数重复多次时，可以使用重复操作符，为一个数据区的各单元设置相同的初值。
+>
+> For Example：M1  DB  10  DUP  (0)
+
+#### ? 号
+
+> 表示随机值，用于预留存储空间，占 1 个字节单元
+>
+> For Example：
+>
+> * MEM1  DB  34H,  ‘A’,  ?
+> * DW  20  DUP (?)  预留了40个字节单元，每单元为随机值
+
+<img src="https://img-blog.csdnimg.cn/20200729224930969.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729225025374.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729224930969.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200729225025374.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+### 符号定义伪指令
+
+<img src="https://img-blog.csdnimg.cn/20200730064136181.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+> EQU 说明的表达式不占用内存空间
+
+### 段定义伪指令
+
+<img src="https://img-blog.csdnimg.cn/20200730064842915.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200730065327966.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200730064842915.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200730065327966.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+### 设定段寄存器伪指令
+
+> 说明所定义逻辑段的性质
+>
+> 源程序中必须声明一个代码段
+
+```commonlisp
+ASSUME 段寄存器名字：段名[，段寄存器名：段名，...]
+```
+
+### 结束伪指令
+
+> 表示源程序结束
+>
+> END  [标号]
+
+### 过程定义伪指令
+
+> 定义一个过程体
+>
+> 执行一条过程调用CALL指令时，系统有两项工作，找入口地址和保护断点
+>
+> * 系统自动把CALL指令的下一条指令的偏移地址压入到堆栈中
+
+```commonlisp
+过程名  PROC[NEAR / FAR]
+	.
+	.
+	.
+	RET
+过程名  ENDP
+
+; 过程名：实际上就是过程的入口地址，即第一条指令在内存中的符号地址
+; NEAR/ FAR：若为近过程，NEAR可以省略，远过程FAR是不可以省略的
+; RET：返回断点
+```
+
+<img src="https://img-blog.csdnimg.cn/20200730072325731.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" style="zoom:50%;" />
+
+### 调整偏移量伪指令
+
+<img src="https://img-blog.csdnimg.cn/20200730082531360.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom: 67%;" />
+
+## 完整源程序示例
+
+<img src="https://img-blog.csdnimg.cn/20200730070150237.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200730070920583.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+只有经过段寄存器初始化，前面声明的那些段才会真正占据了内存，之前只是定义了，只有代码段不需·要初始化
+
+> MOV 不允许为段寄存器直接赋值，所以不可以直接用立即数当作源操作数，要使用通用寄存器
+
+## 系统功能调用
+
+> 调用BIOS / DOS功能
+
+<img src="https://img-blog.csdnimg.cn/20200730083113793.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+> 软中断指令调用，中断类型码：21H
+
+<img src="https://img-blog.csdnimg.cn/20200730083435658.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom: 67%;" />
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730084427564.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> 没有入口参数，输入就是键盘，运行完这两行代码屏幕上会出现光标，然后需要输入字符，键盘扫描吗转换为ASCII码，存放在出口参数AL中
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730084733726.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> 不能总是输入单个字符，当我们输入字符串时，不能全部存在寄存器中，而需要存放在内存中
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730085421649.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> N1是字节，所以缓冲区大小必须小于255
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730090230612.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+首先把10号功能送进AL中，缓冲区要求必须定义在数据段，缓冲区首地址必须给DX
+
+<font color="red">注意：这里的DX不是间指寄存器之一，指令系统中，能够放进方括号作为间接寄存器表示偏移地址的只有DX、DP、SI、DI</font>
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/2020073009053153.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730090825785.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> 字符串的输出显示
+>
+> AH   功能号 09H
+>
+> DS：DX    待输出字符串的偏移地址
+>
+> INT   21H
+
+> 要输出必须要先定义，且必须定义在数据段，而且首地址必须由DX标识
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730091237251.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730091547428.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730091652689.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730091822691.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+# 汇编程序设计示例
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200730103113271.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> 串操作：每一条指令都是一个循环体，那么要推出这个循环就需要条件，对于所有串操作指令，我们都要知道串长度值和操作方向
+>
+> * 串长度值必须送给CX 
