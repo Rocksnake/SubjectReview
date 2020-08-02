@@ -408,7 +408,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 
 需要获取实际内存的数据，通过偏移地址获取内存的实际地址，借助段地址，默认存放在数据段中，所以数据段 x 10H + 偏移地址得到实际地址。
 
-![image.png](https://i.loli.net/2020/07/19/H1dNFypzXU43MQL.png)
+<img src="https://i.loli.net/2020/07/19/H1dNFypzXU43MQL.png" alt="image.png" style="zoom:50%;" />
 
 #### 段超越
 
@@ -424,7 +424,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 >
 > 若以BP作为间接寻址寄存器，则默认操作数存放在堆栈段中，用SS寄存器中的内容作为地址
 
-![image.png](https://i.loli.net/2020/07/19/k1ED79RqawQv6Vx.png)
+<img src="https://i.loli.net/2020/07/19/k1ED79RqawQv6Vx.png" alt="image.png" style="zoom:50%;" />
 
 也存在段超越，若以BP作为间接寻址寄存器，则默认操作数存放在堆栈段中，用SS寄存器中的内容作为地址。
 
@@ -442,7 +442,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 >
 > 如： MOV CL，[BX+1064H]
 
-![image.png](https://i.loli.net/2020/07/19/lV4aCcT8A3zeIpg.png)
+<img src="https://i.loli.net/2020/07/19/lV4aCcT8A3zeIpg.png" alt="image.png" style="zoom:50%;" />
 
 #### 基址加变址寻址方式
 
@@ -452,7 +452,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 
 如：MOV AH，[BP] [SI]
 
-![image.png](https://i.loli.net/2020/07/19/bC9JaODEMiRq12m.png)
+<img src="https://i.loli.net/2020/07/19/bC9JaODEMiRq12m.png" alt="image.png" style="zoom:50%;" />
 
 #### 相对基址加变址寻址方式
 
@@ -463,7 +463,7 @@ C2 + C7 = (1)89 有进位，CF = 1
 >
 > 如：MOV [BX+DI+1234H], [AH]
 
-![image.png](https://i.loli.net/2020/07/19/tcFM38ls2zwnTrQ.png)
+<img src="https://i.loli.net/2020/07/19/tcFM38ls2zwnTrQ.png" alt="image.png" style="zoom:50%;" />
 
 #### 总结
 
@@ -1490,3 +1490,67 @@ ASSUME 段寄存器名字：段名[，段寄存器名：段名，...]
 > 串操作：每一条指令都是一个循环体，那么要推出这个循环就需要条件，对于所有串操作指令，我们都要知道串长度值和操作方向
 >
 > * 串长度值必须送给CX 
+
+# 存储器
+
+> 内存条一般都由8片芯片组成，原因在于：
+>
+> 每一个芯片上不管有多少个单元，每个单元里不是8位二进制码，如果是8片的话，每个单元里只有1位，也就是说可以描述为 4G  x  1b
+
+容量的描述：
+
+* 内存，8G、4G字节，我们直接把字节忽略掉了，因为我们认定每个字节里一定是8位二进制码，1字节数
+* 芯片，？ x  ？b，多少乘以多少位，例如 8k  x  8b
+
+<img src="https://img-blog.csdnimg.cn/20200731070714560.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+
+
+## 实现存储器芯片和系统的连接
+
+<img src="https://img-blog.csdnimg.cn/20200731074955931.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom: 67%;" />
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/2020073107522027.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200731081025644.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200731081425154.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+> EEPROM写操作：
+>
+> * 根据参数定时写入
+> * 通过判断READY/#BUSY端的状态进行写入
+>   * 仅当该端为高电平时才可写入下一个字节
+> * 中断控制方式
+>   * 当READY/#BUSY端为高电平时，该高电平可作为中断请求信号
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/2020073109415832.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+## 存储器扩展技术
+
+> 用已有的多片存储器芯片构造一个需要的存储空间
+
+> 存储器芯片的存储容量等于  单元素  x  每单元的位数
+>
+> * 单元素   —   字节数
+> * 每单元位数   —  字长
+>
+> 哪个不满足就扩展哪个
+
+### 第一题
+
+<img src="https://img-blog.csdnimg.cn/20200801113649113.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+### 第二题
+
+<img src="https://img-blog.csdnimg.cn/20200801113917182.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200801114327314.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />
+
+<img src="https://img-blog.csdnimg.cn/20200801114353477.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />![在这里插入图片描述](https://img-blog.csdnimg.cn/20200801114649808.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+<img src="https://img-blog.csdnimg.cn/20200801114353477.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70" alt="在这里插入图片描述" style="zoom:50%;" />![在这里插入图片描述](https://img-blog.csdnimg.cn/20200801114649808.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
+
+
+
+![在这里插入图片描述](https://img-blog.csdnimg.cn/20200801114812139.png?x-oss-process=image/watermark,type_ZmFuZ3poZW5naGVpdGk,shadow_10,text_aHR0cHM6Ly9ibG9nLmNzZG4ubmV0L1Jva29CYXNpbGlzaw==,size_16,color_FFFFFF,t_70)
